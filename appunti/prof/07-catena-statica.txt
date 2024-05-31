@@ -1,0 +1,12 @@
+La catena statica è una tecnica per l'implementazione di funzioni non di prima
+classe la cui definizione è imbricata nel corpo di altre funzioni (es. in
+Pascal).
+
+L'i-esima invocazione della funzione può accedere alle variabili contenute nel
+j-esimo blocco che staticamente racchiude la definizione di funzione. A run-time
+tali variabili sono mantenute nello stack, ma possono risiedere in stack frame
+arbitrariamente profondi a cause delle chiamate ricorsive e non. La catena
+statica risolve il problema aggiungendo a ogni record di attivazione un nuovo
+puntatore al record di attivazione del blococ di codice che staticamente
+racchiude quello corrente. Per accedere al j-esimo blocco si percorre la catena
+statica j volte.

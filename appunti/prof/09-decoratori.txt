@@ -1,0 +1,14 @@
+Esempi di decoratori:
+
+logging  (f : i -> o)  ->  i -> o
+memoize  (f : i -> o)  ->  i -> o
+backtrakable (f : i -> o)  ->  i -> o * undo
+....
+
+======================
+
+Esempi di uso di decoratori:
+
+        y = logging(double)(x);
+        z = backtrackable(logging(f))(y);
+        w = memoize(g)(y,z);

@@ -1,0 +1,36 @@
+int z;
+
+f (int x) {
+        int y;
+        return x + y + z;
+}
+
+f è una funzione
+
+==============================
+
+int u;
+
+g (int x) {
+        h(int w) {
+                int y;
+                return y + w + z + u;
+        }
+}
+
+g e h sono entrambe funzioni
+(h è annidata ma usa solo variabili locali,
+parametri e variabili globali)
+
+=====================================
+
+g (int x) {
+        h(int w) {
+                int y;
+                return x + y + w + z;
+        }
+}
+
+h NON è una funzione (è una chiusura) in
+quanto usa la variabile x definita in uno
+scope locale esterno alla h
