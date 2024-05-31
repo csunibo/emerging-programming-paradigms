@@ -1,0 +1,78 @@
+Usi tipici:
+apro un file e lo chiudo nell'after per essere sicuro che
+venga chiuso anche se scappa una eccezione.
+
+6> try
+     io:format("b~n",[]),throw(err1)
+   catch
+     err1 -> io:format("c~n",[]),throw(ko)
+   after
+     io:format("a~n",[]), 5 end.
+b
+c
+a
+** exception throw: ko
+
+try
+ E
+catch
+ P -> F
+after G
+
+viene compilata come
+
+try
+ X = E,
+ G,
+ X
+catch
+ P ->
+  try
+   X = F,
+   G,
+   X
+  catch
+   Y -> G, throw(Y)
+  end
+end.
+
+=================
+
+try
+ E
+of
+ P' -> F'
+catch
+ P -> F
+after G
+
+viene compilata come
+
+R = (try
+ {ok, E}
+catch
+ S -> {exc, S}),
+case R of
+ {ok, E} ->
+   case E of
+    P' ->
+      try 
+       Y = F',
+       G,
+       Y
+      catch
+        U -> G, throw(U)
+      end
+   end ;
+ {exc, S} ->
+   case F of
+     P ->
+      try
+       X = F,
+       G,
+       X
+      catch
+       Y -> G, throw(Y)
+      end
+   end
+end.

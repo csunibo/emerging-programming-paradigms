@@ -1,0 +1,11 @@
+Vi sono veri flavour di programmazione ad agenti. In alcuni la programmazione ad
+agenti è un caso particolare di quella ad attori dove si vincola sia la forma
+dello stato (per rappresentare belief, intenzioni, etc.) che i messaggi. In
+altri un agente è un'entità software che interagisce con un ambiente (per
+esempio un insieme di tuple o il mondo fisico) potendo leggerlo e modificarlo.
+Due agenti non condividono stato, behaviour o memoria. Possono comunicare
+solamente modificando l'ambiente condiviso. È possibile simulare la
+programmazione ad agenti in questo senso con quella ad attori (un attore
+gestisce l'ambiente); il viceversa è possibile se ogni agente ha un PID univoco:
+la send consiste nel mettere nell'ambiente una tupla {send, PID_ricevente,
+messaggio} che viene rimossa dal ricevente come operazione receive.

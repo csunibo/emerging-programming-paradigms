@@ -1,0 +1,278 @@
+Polimorfismo parametrico:
+
+f : forall T1,T2.  T1 X T2  -> T2 X T1
+T2 X T1 f<T1,T2>(c: T1 X T2) 
+f({X,Y}) -> {Y,X}.
+
+f({2,3}) = {3,2}
+f({{1,2},3}) = {3,{1,2}}
+
+Rappresentazione dei dati alla C:
+
+struct { int fst ; int snd; }     @a:   fst
+                                  @a+1: snd
+
+typedef p struct { int a; int b; }
+struct { struct p fst ; int snd }   @a:   fst.a
+                                    @a+1: fst.b
+                                    @a+2: snd
+
+* SOLUZIONE 1: monomorfizzazione (C++, Rust*)  *se possibile
+
+Supponiamo che a compile time il compilatore possa determinare
+tutti i tipi sui quali viene usata una funzione parametrica.
+
+T a := [] | <T (aXa),a,T (aXa)>
+Es: un albero di tipo T int e'
+
+<<[],<2,3>,<[],<<1,2>,<3,4>>,[]>, 4, []>
+
+add_all(f,[]) -> 0 ;
+add_all(f,<T1,V,T2>) ->
+   add_all(fun ({X,Y}) -> f(X)+f(Y) end,T1)
+ + f V
+ + add_all(fun ({X,Y}) -> f(X)+f(Y) end,T2).   
+
+Implementazione: la funzione parametrica viene compilata una volta
+per ogni combinazione di tipo passato in input.
+Nota: il nome dato alle funzioni compilate e' un MANGLING del nome
+della funzione e quello dei tipi (es. f__int__int)
+
+Pro:
+- non impone vincoli sulla rappresentazione dei dati
+- ogni versione del codice viene compilata con ottimizzazioni diverse
+  ad-hoc
+
+Cons:
+- la compilazione separata completa non e' piu' possibile
+- i tempi di compilazione diventano molto elevati
+- la dimensione del compilato puo' diventare MOLTO grande e eccedere
+  la dimensione della cache
+
+* SOLUZIONE 2: alla C o "la mia dimensione viene con me" (C, Rust#)
+  # se non puo' fare di meglio
+
+Osservazione: sia x un dato di tipo T dove T e' un parametro di tipo
+Cosa puo' fare il codice con x?
+  * non posso chiamarci sopra funzioni tipo-specifiche, es. x+2, x[3],
+  + potete copiarlo/spostarlo/cancellarlo e potete allocare un nuovo dato
+    di tipo T  ovvero tutte e sole le operazioni che richiedono solo
+    indirizzo e dimensione del dato
+
+In C: una funzione polimorfa prende in input i dati come coppie
+      indirizzo (void *) e dimensione (size_t)
+Il codice viene compilato una e una sola volta e per copiare/spostare/etc.
+esegue un ciclo for sulla dimensione del dato
+
+Pro:
+- eseguibile piccolo, compilazione rapida
+
+Cons:
+- codice inefficiente (es. cicli for anche per copiare una word)
+- necessita di mantenere a run-time le dimensioni dei dati
+
+* SOLUZIONE 3: rappresentazione uniforme dei dati
+  (Lisp/Erlang/OCaml/Haskell/Prolog/...)
+
+Idea: tutti i dati sono rappresentati esattamente da 1 word
+==> posso compilare una sola versione del codice che copia/sposta/...
+la word
+
+Come rappresento i dati in una sola word?
+- dati che naturalmente occupano meno (o uguale) a 1 word:
+  (es. interi, booleani, atomi, ...)
+  USO una word intera, facendo PADDING dei bit che non mi servono
+  ## DATI UNBOXED ##
+- dati che occupano piu' di una word (es. tuple, array, ...):
+  alloco il dato sullo heap e lo rappresento con il puntatore
+  ## DATI BOXED (reference types) ##
+
+Esempio:  {1,2}        a     |   @a: 1  @a+1: 2
+          {{1,2},3}    a     |   @a: b  @a+1: 3   @b: 1 @b+1: 2
+        f({X,Y}) -> {Y,X}
+
+Pro:
+- eseguibile piccolo, compilazione rapida
+- nessuna premessa sul numero di istanze su cui uso la funzione
+
+Cons:
+- poco controllo sulla rappresentazione dei dati
+- rispetto a un programma con il memory model del C si usa piu' RAM
+  e ci sono piu' accessi allo heap
+
+===================================================
+
+TODO:
+a) rappresentazione uniforme e linguaggi non tipati
+b) rappresentazione uniforme e garbage collection
+c) pattern matching e sharing e algoritmi funzionali
+
+Se il linguaggio e' tipato (es. OCaml/Haskell) quanto detto sopra
+si applica.
+
+Se il linguaggio e' non tipato, serve taggare i valori in
+modo da non confrontare valori di tipo differente.
+es. 0 =:= []  e' false in Erlang
+    0 = []    e' errore di tipo in OCaml
+    Obj.magic 0 = Obj.magic [] e' true in OCaml il che significa
+     che la rappresentazione in RAM e' la stessa
+
+Soluzione 1 (nessuno usa): 1 word per il tag + 1 word per il payload
+Soluzione 2: 1 word per tag + payload  ==> il payload e' meno di 64 bit
+Esempio: in Erlang il tag dice
+{intero,float,atomo,PID,porta,reference,puntatore (tipo boxed)}
+Idea: usare tag di lunghezza variabile, ovvero tali che nessuno e'
+suffisso di un altro (es. xxx0, yyy01, zzz011)
+Per i tipi boxed: il tag lo metto nella prima cella dello heap
+che precede il payload
+es: {2,3}     a   |  @a: tag  @a+1: 2  @a+2: 3
+
+Prop:
+- permette di differenziare i valori a seconda del tipo
+
+Cons:
+- riduzione della dimensione del payload
+- problematiche di interfacciamento con altri linguaggi
+  (un intero C e' 32 bit, un intero Erlang e' meno)
+- inadatto alle computazioni numeriche pesanti
+  X+Y        xxxx01 + yyyy01 = MINUS (ADD xxxx01 yyyy01) 01
+  X*Y        xxxx01 * yyyy01 = ADD (SHIFT (MULT (SHIFT xxxx01 2)
+                                           (SHIFT yyyy01 2)) -2) 01
+
+================
+Garbage collection automatica: a run-time il GC deve determinare
+se un dato nello heap e' ancora utilizzato (es. in un registro ho
+un puntatore a al dato nello heap)
+
+Problema: come distinguo un puntatore da un non puntatore?
+Soluzione (anche nei linguaggi tipati es. OCaml/Haskell): uso un tag
+
+Se sono tipato e' sufficiente un bit.
+
+Puntatori:
+ - se scelgo: Bxxxxxxx   50% della memoria inusabile  NO
+ - se shifto e dereferenzio rallento tutto il codice  NO
+ - se scelgo: xxxxxxx1  (indirizzi dispari) no memory aligned NO
+ - se scelgo: xxxxxxx0  (indirizzi pari) memory aligned YES!
+
+Secondo problema: quante word occupa un dato nello heap da deallocare?
+Soluzione: nella prima cella che contiene il tag faccio stare anche la
+dimensione
+
+Pro:
+- permette di implementare GC automatica
+
+Cons:
+- richiede tag ==> vedi Cons della sezione prima
+- permette di indirizzare solo il 50% della RAM => spreco di memoria
+  TUTTAVIA: lo spreco e' al 50% del numero di dati unboxed
+    Es:  @a: tag @a+1: 1 @a+2: 2  @a+3:SPRECATO @a+4=b: tag ....
+
+=============================
+
+Pattern matching e rappresentazione uniforme dei dati:
+
+Es: consideriamo il pattern match
+
+    {{X,Y},Z,[2|W]} = {{1,2},{4,5},[2|[3,4]]}
+
+                               a
+
+@a: tag                  if *a.tag = tupla lunga 3
+@a+1: b                   if *(a+1) is a pointer then
+@a+2: c                    if **(a+1) = tupla lunga 2
+@a+3: d                     X := *(*(a+1)+1) # assegno 1
+                            Y := *(*(a+1)+2) # assegno 2
+                           Z := *(a+2)       # assegna c che rappr. {4,5}
+@b: tag                   ....
+@b+1: 1                    
+@b+2: 2                  Alla fine: X := 1, Y := 2, Z := c, W := e
+
+@c: tag
+@c+1: 4
+@c+2: 5
+
+@d: tag
+@d+1: 2
+@d+2: e
+
+@e: tag
+@e+1: 3
+@e+2: f
+
+...
+
+Il costo del pattern matching e' O(n) dove n e' la dimensione del pattern.
+Le variabili vengono assegnate ai puntatori nel caso dei dati boxed.
+
+==================================================================
+
+Rappresentazione degli atomi
+
+Problema: stabilire una corrispondenza biunivoca fra atomi e interi (payload)
+
+# Soluzione 1: numero progressivo
+Pro:
+(ottima nel caso di linguaggi di programmazione tipati e atomi partizionati
+nei tipi)
+
+Cons:
+(nel caso di linguaggio di programmazione non tipato e con nuovi atomi a run-time)
+- compilazione separata non possibile/ardua per via di clash di nomi
+- nel caso di nuovi atomi a run-time E sistema distribuito aperto (Erlang!)
+  Mitigazioni:
+   [x] mantenere globalmente un unico numero progressivo: male in sistema distribuito
+   [x] mantenerlo in maniera peer-to-peer o decentralizzata
+   [ok] (Erlang) ogni nodo mantiene sia il numero progressivo che PER OGNI ALTRO NODO
+        una mappa di traduzione da suoi atomi ad atomi dell'altro nodo
+      * durante la ricezione di un messaggio si usa la mappa per tradurre gli atomi
+      * durante l'invi del primo messaggo che usa un atomo 'foo', viene inviata anche
+        la conoscenza che per il nodo mittente 'foo'=xxx il valore
+
+# Soluzione 2: usare l'hash del nome dell'atomo
+Pro:
+- il calcolo dell'hash e' effettuato localmente, ma vale globalmente
+  ==> nessun problema nel caso di sistemi distribuiti
+
+Cons:
+- il mapping non e' biunivoco
+  Mitigazione (MOLTO parziale):
+   * (OCaml): il compilatore/linker tiene l'insieme dei valori hash utilizzati
+     e in caso di conflitto abortisce la compilazione
+     + in caso di conflitto, non resta che far modificare i sorgenti :-(
+     + totalmente inapplicabile in un sistema tipo Erlang che e' pensato per
+       programmi che non falliscano mai
+
+=========================================
+
+Stack e record di attivazione:
+
+f({X,Y}) -> {Z,W} = {X,X}, Z+W.
+
+g({A}) -> B = A, U = f({A,B}), U+1.
+
+Stack = area di memoria consecutiva + SP (stack pointer)
+
+Eseguo: g({5}).
+
+SP=1000
+
+-------------------------   SP = 990
+@990:  ...   valore di W
+@991:  ...   valore di Z         RA della f
+@992:  ...   valore di Y
+@993:  ...   valore di X
+@994:  RA    della f
+@995:  RV    della f
+--------------------------
+@996:  ?     valore di U
+@997:  5     valore di B         RA della g
+@998:  5     valore di A
+@999:  RA    return address
+@1000: RV    return "value" = indirizzo di dove andare a scrivere oppure
+                              slot da riempire oppure puo' essere omesso
+                              se si usa registro/indirizzo fissato oppure ...
+
+Record di attivazione = RA + RV + valore dei parametri formali e delle variabili locali
+
+RA e RV DEVONO essere le prime due celle (vi diro' perche')

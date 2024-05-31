@@ -1,0 +1,15 @@
+1. High-order functions, ovvero le funzioni possono prendere in input e
+resituire altre funzioni. Più genericamente le funzioni sono oggetti di prima
+classe: possono essere usate ovunque posso usare un valore (prese in input, date
+in output, memorizzate in una struttura dati, etc.).
+2. Il linguaggio è puro quando non sono presenti side-effect. In particolare
+tutte le variabili e le celle in memoria sono immutabili. Modificare una purely
+functional data structure significa crearne una nuova versione, che si affianca
+alla precedente, riusando le parti della precedente che non vengono modificate.
+Tale costruzione è corretta grazie all'assenza di mutabilità. Vedi per esempio
+il file bstrees.erl negli esempi di codice. L'assenza di mutabilità semplifica
+la programmazione concorrente (no race conditions), permette di evitare costose
+copie di strutture dati per evitare modifiche non volute e permette il
+backtracking for free. Vedere "Purely Functional Data Structures" di Okasaki o
+la sua tesi di dottorato per esempi di strutture dati immutabili con buone
+complessità computazionali.

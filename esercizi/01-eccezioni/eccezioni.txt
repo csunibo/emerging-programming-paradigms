@@ -1,0 +1,78 @@
+h(N) -> throw({err1,N}).
+
+f(N) -> h(N) + 1.
+
+g() ->
+ try
+  f(3)
+ catch
+  {err1, X} -> X ;
+  {err2, Y} -> g()
+ end.
+
+
+Ogni blocco catch diventa un nuovo tipo di record di attivazione:
+
+g()
+
+| record di attivazione per g() |
+---------------------------------
+
+eseguo il try ... catch
+
+| record ti tipo catch che punta|
+| codice del pattern matching   |
+---------------------------------
+| record di attivazione per g() |
+---------------------------------
+
+eseguo f(3)
+
+| record per f(3)               |
+---------------------------------
+| record ti tipo catch che punta|
+| codice del pattern matching   |
+---------------------------------
+| record di attivazione per g() |
+---------------------------------
+
+eseguo h(3)
+
+| record per h(3)               |
+---------------------------------
+| record per f(3)               |
+---------------------------------
+| record ti tipo catch che punta|
+| codice del pattern matching   |
+---------------------------------
+| record di attivazione per g() |
+---------------------------------
+
+throw({err1,3})
+== implementato come
+
+ trovato = false;
+ valore = unknown;
+ while (not trovato)
+  R = pop() ;
+  case R of
+    {record_di_attivazione, F} ->
+      case F() of
+        {gestito, X} -> trovato = true; valore = X ;
+        non_gestito -> ok
+      end
+    {record_di_funzine, _} -> ok
+  end.
+
+| record di attivazione per g() |
+---------------------------------
+
+
+Nel caso di terminazione con successo del codice nel blocco try:
+
+pop();
+eseguito il codice per "of" se presente
+
+ATTENZIONE:
+i rami dell'of e i rami del catch sono eseguiti _DOPO_ aver fatto pop()
+e quindi NON sono protetti dal blocco
