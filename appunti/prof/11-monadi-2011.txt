@@ -1,0 +1,180 @@
+Maybe monad:
+
+1)  return x >>= f = f x
+
+    (Just x) >>= f
+--> f x
+
+2)  m >>= return = m
+
+    m >>= Just
+
+==  Nothing >>= Just --> Nothing   se m = Nothing
+    (Just a) >>= Just --> Just a   se m = Just a
+==  m
+
+3)  (m >>= n) >>= p = m >> (\x -> (n x >>= p))
+
+per casi su m:
+
+caso Nothing:
+
+    (Nothing >>= n) >>= p
+--> Nothing >>= p
+--> Nothing
+
+    Nothing >>= \x -> n x >>= p
+--> Nothing
+
+caso Just a:
+
+   (Just a >>= n) >>= p
+--> n a >>= p
+
+    Just a >>= \x -> n x >>= p
+--> (\x -> n x >>= p) a
+--> n a >>= p
+
+===========================
+
+List monad:
+
+1)  return x >>= f = f x
+
+    (x:[]) >>= f
+--> f x ++ [] >>= f
+--> f x ++ []
+--> f x
+
+2)  m >>= return = m
+
+Per induzione su m:
+
+caso []:
+
+    [] >>= return
+--> []
+
+caso x:xs:
+  ipotesi induttiva su xs: xs >>= return = xs
+
+    (x:xs) >>= return
+--> return x ++ xs >>= return
+--> [x] ++ xs
+--> x:xs
+
+3) (m >>= n) >>= p = m >>= \x -> n x >>= p
+
+per induzione su m:
+
+caso []:
+
+   ([] >>= n) >>= p
+--> [] >>= p
+--> []
+
+   [] >>= \x -> n x >>= p
+--> []
+
+caso x:xs:
+  ipotesi induttiva
+    (xs >>= m) >>= p = xs >>= \x -> m x >>= p
+
+    ((x:xs) >>= m) >>= p
+--> (m x ++ xs >>= m) >>= p
+-- lemmi -->
+     (m x >>= p) ++ ((xs >>= m) >>= p)
+--> (m x >>= p) ++ xs >>= \x -> m x >>= p
+....
+
+
+double :: Int -> (Int, [Char])
+double n =
+ (x, msg) = ((), "double called")
+ (n * n, msg)
+
+f :: Int -> (Int, [Char])
+f n =
+ (y, msg1) = ((), "f called)
+ (x, msg2) = double n
+ (z, msg3) = double x
+ (z, msg1 ++ msg2 ++ msg3)
+
+
+
+Writer monad:
+
+1) return x >>= f = f x
+
+    Writer (x, mempty) >>= f
+--> let (Writer (y, v')) = f x in
+     Writer (y, mempty `mappend` v')
+--> let Writer (y,v') = f x in
+     Writer (y,v')
+== f x
+
+
+
+Problema: calcolare il massimo di una lista
+
+newtype MaxInt = Max { i::Int }
+
+instance Monoid MaxInt where
+   mempty = minint
+   x `mappend` y = max x y
+
+max :: [Int] -> Writer MaxInt ()
+max [] = do return ()
+max (x:xs) =
+ do
+  tell (Max {i = x})
+  max xs
+
+Esempi:
+max [1,2] = 2
+max [] = minint
+
+===================================
+
+f :: Int -> Configuration -> Int
+f n cfg =
+  n * cfg.m
+
+g :: Int -> Configuration -> Int
+g x cfg =
+  f cfg n + f cfg n
+
+
+Esempio:  g 4 5 --> 40
+
+
+=================================
+
+Reader Monad:
+
+1)  return x >>= f = f x
+
+    (\_ -> x) >>= f
+--> \w -> f ((\_ -> x) w) w
+--> \w -> f x w
+==  f x
+
+2) m >>= return = m
+
+   m >>= \x -> \_ -> x
+--> \w -> (\x -> \_ -> x) (m w) w
+--> \w -> m w
+== m
+
+3) (m >>= n) >>= p = m >>= (\x -> n x >>= p)
+
+   (m >>= n) >>= p
+--> \w -> p ((m >>= n) w) w
+--> \w -> p ((\w' -> n (m w') w') w) w
+--> \w -> p (n (m w) w) w
+
+   m >>= (\x -> n x >>= p)
+--> \w -> (\x -> n x >>= p) (m w) w
+--> \w -> (n (m w) >>= p) w
+--> \w -> (\w' -> p (n (m w) w') w') w
+--> \w -> p (n (m w) w) w
