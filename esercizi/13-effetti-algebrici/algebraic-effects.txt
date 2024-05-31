@@ -1,0 +1,44 @@
+Eccezioni:
+
+si aggiungono sullo stack dei particolari stack items che NON sono record
+di attivaziond di funzioni, bensì corrispondo ai try/with del linguaggio
+
+g() ->
+ throw {x, 7}
+
+f() ->
+ try
+  g()
+ catch
+  {x, X} -> h(X + 2) ; **RESUME(12)**
+  {y, A, B} -> A + B
+ end
+
+
+
+ RA per la g
+------------
+ TRY/CATCH -------------> al codice del catch
+------------
+ RA per la f
+------------
+
+Idea:
+
+lo stack diventa una lista (nello heap) di FIBRE che sono dei mini-stack
+di record di attivazione implementati come array in memoria
+
+Eseguire un try/catch: alloca una nuova fibra O(..) CHEAP
+Eseguire una chiamata: fa push di un RA sull'ultima fibra allocata O(1)
+Eseguire una throw: fa pop della lista di fibre di un puntatore e
+ ricorsivamente costruisce liste di puntatori se deve esaminare più
+ try/catch
+
+Effetti algebrici quando:
+ a) i rami catch prendono in input la (lista di) fibre (o "stack")
+    che è stato staccato
+ b) i rami catch possono invocare:
+      - o una resume per fare push sullo stack della lista di fibre
+      - o una destroy per deallocare la lista di fibre
+    ogni (lista di) fibre deve essere usata LINEARMENTE ovvero mai
+    duplicata
