@@ -1,0 +1,98 @@
+Garbage Collection
+
+Problemi della gestione (esplicita) della memoria in ambito sequenziale:
+1. mancato recupero della memoria non piu' utilizzabile o in uso
+   (memory leak)
+2. doppia deallocazione della memoria
+3. uso di memoria non allocata (es. gia' deallocata)
+   (dandling pointer)
+
+NULL = puntatore a pagina logica mai mappata ==>
+       accesso scatena interrupt e SO uccide il processo
+
+Problemi della gestione della memoria in ambito concorrente:
+* scrittura/lettura/deallocazione: al piu' una operazione
+  alla volta e nel caso di scrittura/deallocazione al piu' un
+  processo alla volta che fa quell'operazione
+
+GC completamente automatica risolve i problemi sequenziali (es. Erlang/OCaml/Haskell/Java/...);
+GC con programmatore che istruisce il compilatore con la semantica
+   del codice risolve entrambi i problemi (es. Rust)
+
+========= GC completamente automatica ======
+Obiettivi:
+- il programmatore puo' non istruire in nessun modo il compilatore/runtime
+  sull'uso della memoria (ovvero la GC si basa solo sul concetto di memoria utilizzabile)
+- a RUNTIME si vuole "garantire" che
+  1. la memoria utilizzabile NON venga deallocata (no dandling pointer)  [ok]
+  2. la memoria non utilizzabile venga deallocata (no memory leak)       [dipende]
+
+Due grandi famiglie:
+a) reference counting (Go/Rust ma non rientra nella GC automatica/C++ ma non rientra nella GC automatica)
+   NON risolve la memory leak
+b) mark&sweep generazionale (Erlang/OCaml/Haskell/...)
+   risolve la memory leak
+
+Altro asse: stop&go vs progressivo
+Punto di attenzione: lunghe pause problematiche per sistemi soft/hard real time
+
+Definizione: una RADICE e' un registro o una cella di memoria alla quale il codice ha
+ accesso diretto (es. tutti i registri sono radici, il contenuto dei RA sullo stack sono radici)
+
+Definizione: una cella di memoria e' UTILIZZABILE se la posso raggiungere ricorsivamente
+ (tramite puntatori in celle utilizzabili) a partire da una RADICE
+
+# Reference counting:
+Idea: ogni cella sullo heap viene aumentata con una word ulteriore che tiene in REFERENCE COUNT,
+      ovvero un intero che conta il numero di puntatori entranti nella cella
+
+* Allocazione:
+  alloco n+1 word in memoria e inizializzo l'RC a 1
+  ^^^^^^ come? vedi SO (best fit, first fit, etc.), tutte operazioni che NON sono O(1)
+
+* Copia del puntatore p:
+  (*p)++;  incremento l'RC
+
+* Cancellare un puntatore p:
+  (*p)--; if *p = 0 then { per ogni puntatore nelle celle puntate da *p, cancellarlo; free(p); }
+  Quando?
+    a) quando si fa pop di un RA
+    b) quando faccio free di un dato nello heap
+    c) quando assegno un valore a un registro/cella di memoria che conteneva in precedenza un puntatore
+
+RC non e' stop&go ma ha pause unbounded
+
+Pros:
+- decisamente deterministico
+
+Cons:
+- allocazione non costa O(1); cancellazione di un puntatore scatena costo O(n) dove n e' la piu' lunga
+  sequenza di celle con RC a 1 radicate nel puntatore che sto cancellando
+- presenta memory leak nel caso di strutture cicliche
+  MITIGAZIONI:
+  * grafi: non c'e' nulla da fare, implementarsi la logica di rilascio della memoria
+  * strutture dati bilinked:
+    - classifico i puntatori in (STRONG) pointers e WEAK pointes
+    - il campo RC conta gli STRONG entranti
+    - si ha memory leak sse vi e' un ciclo in memoria fatto da soli STRONG pointers
+    PRO:
+     * si mitigano i memory leak
+    CONS:
+     * richiede intervento esplicito del programmatore
+     * i weak pointer possono essere dandling; mitigazione: e' dato sapere se e' dandling
+       ma richiede strutture dati aggiuntive per riconoscere le celle deallocate
+- ogni operazione di assegnamento e copia ha un costo superiore alla gestione senza reference counting
+
+Non adatto per via dell'overhead a linguaggi in cui e' necessario allocare spesso (es. linguaggi
+funzionali puri)
+
+DOMANDA: come si fa in un linguaggio funzionale puro a creare strutture dati cicliche?
+Esempio, sintassi OCaml:
+  - liste x::l (in Erlang [X|L])
+  - definizione di variabile: let nome = valore   (es. let x = 4)
+  - definizione RICORSIVA di variabile: let rec l : int list = 1::l
+
+# Mark&sweep
+
+
+# Mark&sweep generazionale

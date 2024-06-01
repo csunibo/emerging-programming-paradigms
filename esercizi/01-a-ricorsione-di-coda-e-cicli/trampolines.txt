@@ -1,0 +1,110 @@
+------------- trampolines -------------
+
+Problema:
+
+dato il seguente codice dove la chiamata della g è in posizione di coda
+
+f() { ... return g(3)
+      ... return 5
+}
+
+...
+x = f()      - prima push record di f
+...          - prima push record di g
+
+
+Soluzione:
+
+lo trasformo come segue
+
+f() { ... return {call, fun () -> g(3) end}
+      ... return {value, 5}
+}
+
+....
+x = call(f())
+..
+
+
+call(J) {
+  I <- J;
+  while(true) {
+    case I of
+       {value, X} -> return X ;
+       {call, F} -> I <- F()
+  } 
+}
+
+
+============= esempio: =======
+
+Prima:
+
+fact(N) -> fact(N,1).
+
+fact(0,A) -> A ;
+fact(N,A) -> fact(N-1, N*A). 
+
+Dopo:
+
+fact(N) -> call(fact(N,1)).
+
+fact(0,A) -> {value, A} ;
+fact(N,A) -> {call, fun () -> fact(N-1,N*A) }
+
+Esecuzione:
+
+fact(5)
+
+|RA di fact(5)|
+---------------
+
+call(fact(5,1))
+
+|RA di call({call, fun () -> fact(4,5))|
+----------------------------------------
+|RA di fact(5)                         |
+----------------------------------------
+
+fact(4,5)
+
+|RA di fact(4,5)                       |
+----------------------------------------
+|RA di call({call, fun () -> fact(4,5))|
+----------------------------------------
+|RA di fact(5)                         |
+----------------------------------------
+
+dopo la chiamata
+
+|RA di call({call, fun () -> fact(4,5))|
+----------------------------------------
+|RA di fact(5)                         |
+----------------------------------------
+
+fact(3,20)
+
+|RA di fact(3,20)                      |
+----------------------------------------
+|RA di call({call, fun () -> fact(4,5))|
+----------------------------------------
+|RA di fact(5)                         |
+----------------------------------------
+
+dopo la chiamata
+
+|RA di call({call, fun () -> fact(4,5))|
+----------------------------------------
+|RA di fact(5)                         |
+----------------------------------------
+
+fact(2,60)
+
+|RA di fact(2,60)                      |
+----------------------------------------
+|RA di call({call, fun () -> fact(4,5))|
+----------------------------------------
+|RA di fact(5)                         |
+----------------------------------------
+
+...

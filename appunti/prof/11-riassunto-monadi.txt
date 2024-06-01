@@ -1,0 +1,91 @@
+a                                        m a
+risultato di una computazione            descrizione di una computazione che calcola un a
+                                             - return: lo fa in maniera semplice / priva di side effect / etc.
+                                             - bind: composizione di computazioni che combina i side effect
+                                             - 1. la computazione return non ha side effect
+                                             - 2. la composizione è priva di memoria storica
+                                         arricchimento del tipo di dato a
+                                             - return: non arricchimento
+                                             - bind: applica una funzione combinando gli arricchimenti
+                                             - 1. la return non può arricchire
+                                             - 2. la composizione degli arricchimenti DEVE essere associativa
+                                         contenitore di dati di tipo a
+                                             - return: inserisce un dato nel contenitore ottenendo un singoletto
+                                             - bind: effettua una sorta di list comprehension sul contenitore
+                                             - 1. la return crea un singoletto
+                                             - 2. la composizione sia priva di memoria storica
+
+
+return : a -> m a
+bind   : m a -> (a -> m b) -> m b
+
+1. return è elemento neutro rispetto a bind
+2. bind è associativa
+
+
+Strutture dati come monadi come contenitori:
+
+Maybe a  -- insieme con al più un elemento
+return x = Just x
+None >>= f = None
+Just x >>= f = f x
+
+
+(a,b) -- coppie a * b   dove b sia un monoid (b,bneutral,`op`)
+return x = (x,bneutral)
+(a,b) >> = f = let (x,b') = f a in (x,b `op` b')
+
+
+(a,a) -- coppie a * a   dove a abbia un'operazione `op` con certe proprietà
+return x = (x,x)
+(x,y) >>= f = let (x1,y1) = f x in
+              let (x2,y2) = f y in
+              (x1 `op` x2, y1 `op` y2)
+
+array a
+return x = [x]
+a >>= f = let b = [ f x || x <- a ] in  -- b è un array di array
+          concat b                      -- concatena assieme tutti gli array
+
+
+
+decorator (a --> b)           -- questo è pseudo-codice in cui impongo di decorare solamente funzioni e non tipi qualsiasi
+return a = fun x -> a x
+f >>= g = fun x -> g (f x)
+
+
+========================================================
+
+Writer:
+- side effect:   put x
+- monoid m => writer a = (a,m)      m è l'output aggiuntivo
+
+return x = (x,mneutral)
+(x,m1) >>= f = let (y,m2) = f x in (y, m1 `op` m2)
+
+put x :: writer ()
+put x = ((),x)
+
+
+Reader:
+- side effect:  read
+- reader a = m -> a     (->) m a
+
+return x = \_. x
+f >>= g = \x. g (f x) x
+
+read :: reader m
+read = \x. x
+
+
+main =
+ do
+   (username,password) <- read
+   connect username password  ...
+   ...
+
+main() {
+  username = getenv("USERNAME");
+  password = getenv("PASSWORD");
+  ...
+}

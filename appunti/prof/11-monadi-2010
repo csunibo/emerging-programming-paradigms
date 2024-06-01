@@ -1,0 +1,99 @@
+return x = Just x
+
+Nothing >>= f = Nothing
+Just x  >>= f = f x
+
+Prima equazione:
+
+  return x >>= f
+= Just x >>= f
+= f x
+
+Seconda equazione:
+  m >>= return
+= m >>= \x -> Just x
+= procedo per casi su m
+  Caso Nothing:
+   = Nothing >>= \x -> Just x
+   = Nothing
+  Casto Just y:
+   = Just y >>= \x -> Just x
+   = (\x -> Just x) y
+   = Just y
+
+= m
+
+Terza equazione:
+  (m >>= n) >>= p
+= procedo per casi su m
+  Caso Nothing:
+   = (Nothing >>= n) >>= p
+   = Nothing >>= p
+   = Nothing
+   = Nothing >>= \x -> n x >>= p
+  Caso Just x:
+   = (Just x >>= n) >>= p
+   = n x >>= p
+   = (\z -> n z >>= p) x
+   = Just x >>= \z -> n z >>= p
+= m >>= \x -> n x >>= p
+
+========================================
+Assumo (1,*) sia un monoide, ovvero:
+ - * e' associativo
+ - 1 * x = x
+ - x * 1 = x
+
+return x = (x, 1)
+(x,m) >>= f =  let (y,m') = f x in (y, m*m')
+
+Prima equazione:
+  return x >>= f
+= (x,1) >>= f
+= let (y,m') = f x in (y, 1*m')
+= let (y,m') = f x in (y,m')
+= f x
+
+=========================
+
+family :: [(String,Int)] -> (Int,Int)
+family =
+ age "Claudio" >>= \x ->
+ age "Barbara" >>= \y ->
+ return (x,y)
+
+family :: [(String,Int)] -> (Int,Int)
+family =
+ \db ->
+  (\x -> age "Barbara" >>= \y -> return (x,y))
+  (age "Claudio" db)
+  db
+
+= \db ->
+   (age "Barbara" >>= \y ->
+     return(age "Claudio" db, y))
+   db
+
+= \db ->
+   (\db' ->
+     (\y -> return (age "Claudio" db, y))
+     (age "Barbara" db') db')
+   db
+
+= \db ->
+   (\y -> return (age "Claudio" db, y) db)
+   (age "Barbara" db)
+
+= \db ->
+   return (age "Claudio" db,
+           age "Barbara" db)
+   db
+
+= \db ->
+   (\_ -> (age "Claudio" db,
+           age "Barbara" db))
+   db
+
+= \db ->
+    (age "Claudio" db,
+	 age "Barbara" db)

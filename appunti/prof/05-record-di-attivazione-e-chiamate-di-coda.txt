@@ -1,0 +1,40 @@
+g(x) {                            f(x) {
+  int y = 4;                        int y = 3;
+  w = g(x+2);                       w = g(x+2);
+  return x + y + w;               l:return x + y + w;
+ }                                }
+
+---------------
+y:  4
+x:  4              g(4)  record di attivazione
+RA: l
+---------------
+w : 
+y : 3          
+x : 2              f(2)  record di attivazione
+RA: ......
+
+Una chiamata di coda (tail call) si ha quando il chiamante:
+1. non compie altre operazioni dopo la chiamata
+2. restituisce come valore il valore di ritorno della chiamata
+
+Esempio: nella seguente funzione
+
+main(L) ->
+ case L of
+    [] -> io:format("Fine lista~n");
+          io:format("Passo e chiudo") ;
+    [_|TL] -> main(TL).
+
+sono chiamate di coda la seconda chiamata ad io:format e quella a main.
+
+
+Una funzione ricorsiva in cui tutte le chiamate sono di coda si chiama
+funzione ricorsiva di coda (tail recursion). E' garantita utilizzare spazio
+costante se invoca solo altre funzioni con la stessa caratteristica.
+
+
+Nel caso di chiamata tail-ricorsiva, il record del chiamante viene rimosso
+(POP) e sostituito dal record del chiamato (PUSH), senza far crescere la
+dimensione della pila. Come indirizzo di ritorno del chiamato si usa quello
+del chiamante.

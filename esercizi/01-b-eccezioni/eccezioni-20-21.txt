@@ -1,0 +1,85 @@
+Un blocco try ... catch ... quando eseguito crea un nuovo tipo di record (record try) che viene inserito sullo stack
+delle chiamate.
+
+
+f() ->
+  try
+    X = g(),
+  catch
+    ciao -> X = 33
+  end,
+ l: 2 + X.
+
+g() ->
+  Y = throw(ciao),
+h: 2 + Y,
+  3.
+
+f()
+
+h    return address                    throw(ciao)
+-------------------------------
+...  return value
+l    return address                     g()
+-------------------------------
+p   funzione di match                             p(ciao) -> X = 33, gestita ; p(_) -> non_gestita.
+... return value
+... return address                      try/catch
+-------------------------------
+.... return value
+.... return address                     f()
+===============================
+
+
+% inizialmente CALL_STACK è vuoto
+throw(X,CALL_STACK) {
+ var ges = false ;
+ while (ges == false) {
+   R = stack.pop();
+   case R of
+      { activation_record, ..., RA} -> CALL_STACK.push(RA - 1), ges = false ;
+      { try_record, P } ->
+         case P(X) of
+            gestita -> ges = true ;
+            non_gestita -> ges = false
+   end
+ }
+}
+
+
+======================== Forma più generale del codice try/catch =========================
+
+try
+ ESPRESSIONE1             % qui le chiamate non sono mai di coda
+ ^^^^^^^^^^^^
+of
+ Match1 -> Codice 1 ;     % qui le chiamate di coda sono di coda
+                          % sse non c'è la clausala after
+ ....
+ Matchn -> Codice n ;
+catch
+ EMatch1 -> Codice 1' ; % qui le chiamate di coda sono di coda
+ ...                    % sse non c'è la clausala after
+ EMatchn -> Codice n'
+after
+ After  % codice di cui viene ignorato il valore di ritorno
+        % e che viene sempre eseguito dopo aver eseguito Codice i o Codice i',
+        % ma restituendo il valore restituto da Codice i o Codice i'
+end.
+
+sottolineo il codice protetto, ovvero quello per cui scatta il match in caso di eccezione
+
+Ma come viene compilato?
+
+Exec_after = fun() -> After end,
+V = try
+     ESPRESSIONE1
+    catch
+     EMatch1 -> R = Codice 1', Exec_after(), R ;
+     ...
+     EMatchn -> R = Codice n', Exec_after(), R ;
+    end,
+case V of
+  Match1 -> R = Codice 1, Exec_after(), R ;
+  ...
+  Matchn -> R = Codice n, Exec_after(), R.
